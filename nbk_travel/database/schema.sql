@@ -102,20 +102,16 @@ CREATE TABLE IF NOT EXISTS schedules (
     vehicleId INT NOT NULL,
     scheduledStart DATETIME NOT NULL,
     scheduledEnd DATETIME NOT NULL,
-    actualStart DATETIME NULL,
-    actualEnd DATETIME NULL,
     conflictFlag TINYINT(1) DEFAULT 0,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
-    FOREIGN KEY (bookingId) REFERENCES bookings(bookingId) ON UPDATE CASCADE ON DELETE RESTRICT,
-    FOREIGN KEY (driverId) REFERENCES drivers(driverId) ON UPDATE CASCADE,
-    FOREIGN KEY (vehicleId) REFERENCES vehicles(vehicleId) ON UPDATE CASCADE,
+    FOREIGN KEY (bookingId) REFERENCES bookings(bookingId) ON DELETE CASCADE,
+    FOREIGN KEY (driverId) REFERENCES drivers(driverId) ON DELETE RESTRICT,
+    FOREIGN KEY (vehicleId) REFERENCES vehicles(vehicleId) ON DELETE RESTRICT,
     
     INDEX idx_driverId (driverId),
     INDEX idx_vehicleId (vehicleId),
-    INDEX idx_scheduledStart (scheduledStart),
-    INDEX idx_scheduledEnd (scheduledEnd)
+    INDEX idx_scheduledStart (scheduledStart)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -123,25 +119,19 @@ CREATE TABLE IF NOT EXISTS schedules (
 -- ============================================
 CREATE TABLE IF NOT EXISTS invoices (
     invoiceId INT PRIMARY KEY AUTO_INCREMENT,
-    invoiceNumber VARCHAR(30) NOT NULL UNIQUE,
     bookingId INT NOT NULL UNIQUE,
     customerId INT NOT NULL,
-    invoiceDate DATETIME NOT NULL,
-    subtotal DECIMAL(10, 2) NOT NULL,
-    taxAmount DECIMAL(10, 2) DEFAULT 0.00,
-    totalAmount DECIMAL(10, 2) NOT NULL,
-    pdfPath VARCHAR(255) NULL,
-    status ENUM('draft', 'issued', 'paid', 'cancelled') DEFAULT 'issued',
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    invoiceDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+    subtotal DECIMAL(8,2) NOT NULL,
+    taxAmount DECIMAL(8,2) NOT NULL,
+    totalAmount DECIMAL(8,2) NOT NULL,
+    pdfPath VARCHAR(255),
     
-    FOREIGN KEY (bookingId) REFERENCES bookings(bookingId) ON UPDATE CASCADE ON DELETE RESTRICT,
-    FOREIGN KEY (customerId) REFERENCES customers(customerId) ON UPDATE CASCADE,
+    FOREIGN KEY (bookingId) REFERENCES bookings(bookingId) ON DELETE CASCADE,
+    FOREIGN KEY (customerId) REFERENCES customers(customerId) ON DELETE RESTRICT,
     
     INDEX idx_bookingId (bookingId),
-    INDEX idx_customerId (customerId),
-    INDEX idx_invoiceNumber (invoiceNumber),
-    INDEX idx_status (status)
+    INDEX idx_customerId (customerId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -149,37 +139,29 @@ CREATE TABLE IF NOT EXISTS invoices (
 -- ============================================
 CREATE TABLE IF NOT EXISTS notifications (
     notificationId INT PRIMARY KEY AUTO_INCREMENT,
-    recipientType ENUM('customer', 'driver', 'admin') DEFAULT 'customer',
+    recipientType ENUM('customer','driver') NOT NULL,
     recipientId INT NOT NULL,
-    channel ENUM('sms', 'email', 'system') DEFAULT 'email',
+    bookingId INT NULL,
+    channel ENUM('sms','email') NOT NULL,
     messageBody VARCHAR(500) NOT NULL,
-    bookingReference VARCHAR(20) NULL,
     sentAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    status ENUM('logged', 'sent', 'failed') DEFAULT 'logged',
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('logged','failed') DEFAULT 'logged',
+    
+    FOREIGN KEY (bookingId) REFERENCES bookings(bookingId) ON DELETE CASCADE,
     
     INDEX idx_recipientId (recipientId),
-    INDEX idx_sentAt (sentAt),
-    INDEX idx_status (status),
-    INDEX idx_channel (channel)
+    INDEX idx_sentAt (sentAt)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
--- AUDIT LOG TABLE
+-- ROUTES TABLE (optional preset locations)
 -- ============================================
-CREATE TABLE IF NOT EXISTS auditLog (
-    auditId INT PRIMARY KEY AUTO_INCREMENT,
-    userId INT NULL,
-    action VARCHAR(100) NOT NULL,
-    tableName VARCHAR(50),
-    recordId INT,
-    oldValues JSON NULL,
-    newValues JSON NULL,
-    ipAddress VARCHAR(45),
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    
-    INDEX idx_userId (userId),
-    INDEX idx_action (action),
-    INDEX idx_created (createdAt)
+CREATE TABLE IF NOT EXISTS routes (
+    routeId INT PRIMARY KEY AUTO_INCREMENT,
+    routeName VARCHAR(100) NOT NULL,
+    pickupArea VARCHAR(100) NOT NULL,
+    dropoffArea VARCHAR(100) NOT NULL,
+    estimatedDuration INT,
+    baseFare DECIMAL(8,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
