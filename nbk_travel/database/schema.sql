@@ -1,11 +1,11 @@
 -- ============================================
 -- NBK Travel Shuttle Booking Management System
--- Database Schema
+-- Database Schema - MVP Edition
 -- ============================================
 
 -- Create Database
-CREATE DATABASE IF NOT EXISTS nbk_travel_shuttle CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE nbk_travel_shuttle;
+CREATE DATABASE IF NOT EXISTS nbk_travel CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE nbk_travel;
 
 -- ============================================
 -- USERS TABLE - Authentication
@@ -14,19 +14,13 @@ CREATE TABLE IF NOT EXISTS users (
     userId INT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(50) NOT NULL UNIQUE,
     passwordHash VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'driver', 'customer') NOT NULL DEFAULT 'customer',
-    firstName VARCHAR(100) NOT NULL,
-    lastName VARCHAR(100) NOT NULL,
-    email VARCHAR(100),
-    phoneNumber VARCHAR(20),
-    status ENUM('active', 'inactive', 'suspended') DEFAULT 'active',
-    lastLoginAt DATETIME NULL,
+    role ENUM('admin','driver') NOT NULL,
+    driverId INT NULL,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
+    FOREIGN KEY (driverId) REFERENCES drivers(driverId) ON DELETE SET NULL,
     INDEX idx_username (username),
-    INDEX idx_role (role),
-    INDEX idx_status (status)
+    INDEX idx_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -35,17 +29,12 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS customers (
     customerId INT PRIMARY KEY AUTO_INCREMENT,
     fullName VARCHAR(100) NOT NULL,
-    phoneNumber VARCHAR(20) NOT NULL,
+    phoneNumber VARCHAR(20) NOT NULL UNIQUE,
     emailAddress VARCHAR(100),
-    preferences VARCHAR(500),
-    totalBookings INT DEFAULT 0,
-    totalSpent DECIMAL(10, 2) DEFAULT 0.00,
+    preferences VARCHAR(255),
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
-    INDEX idx_phone (phoneNumber),
-    INDEX idx_email (emailAddress),
-    INDEX idx_created (createdAt)
+    INDEX idx_phone (phoneNumber)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -56,16 +45,10 @@ CREATE TABLE IF NOT EXISTS drivers (
     fullName VARCHAR(100) NOT NULL,
     licenceNumber VARCHAR(30) NOT NULL UNIQUE,
     phoneNumber VARCHAR(20) NOT NULL,
-    emailAddress VARCHAR(100),
-    status ENUM('available', 'on-trip', 'off-duty', 'inactive') DEFAULT 'available',
-    totalTrips INT DEFAULT 0,
-    totalHours DECIMAL(8, 2) DEFAULT 0.00,
+    status ENUM('available','on-trip','off-duty') DEFAULT 'available',
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
-    INDEX idx_status (status),
-    INDEX idx_phone (phoneNumber),
-    INDEX idx_licence (licenceNumber)
+    INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -74,18 +57,13 @@ CREATE TABLE IF NOT EXISTS drivers (
 CREATE TABLE IF NOT EXISTS vehicles (
     vehicleId INT PRIMARY KEY AUTO_INCREMENT,
     registrationNumber VARCHAR(20) NOT NULL UNIQUE,
-    make VARCHAR(50),
-    model VARCHAR(50),
-    capacity INT DEFAULT 5,
-    status ENUM('available', 'in-use', 'maintenance') DEFAULT 'available',
-    lastServiceDate DATE NULL,
-    maintenanceNotes VARCHAR(500),
-    totalTrips INT DEFAULT 0,
+    make VARCHAR(50) NOT NULL,
+    model VARCHAR(50) NOT NULL,
+    capacity INT NOT NULL,
+    status ENUM('available','in-use','maintenance') DEFAULT 'available',
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
-    INDEX idx_status (status),
-    INDEX idx_registration (registrationNumber)
+    INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
@@ -93,31 +71,25 @@ CREATE TABLE IF NOT EXISTS vehicles (
 -- ============================================
 CREATE TABLE IF NOT EXISTS bookings (
     bookingId INT PRIMARY KEY AUTO_INCREMENT,
-    bookingReference VARCHAR(20) NOT NULL UNIQUE,
     customerId INT NOT NULL,
     driverId INT NULL,
     vehicleId INT NULL,
-    pickupLocation VARCHAR(255) NOT NULL,
-    dropoffLocation VARCHAR(255) NOT NULL,
+    pickupLocation VARCHAR(100) NOT NULL,
+    dropoffLocation VARCHAR(100) NOT NULL,
     bookingDate DATETIME NOT NULL,
-    passengers INT DEFAULT 1,
-    status ENUM('pending', 'confirmed', 'completed', 'cancelled') DEFAULT 'pending',
-    cancellationReason VARCHAR(500) NULL,
-    fareAmount DECIMAL(10, 2) NOT NULL,
-    notes VARCHAR(500),
+    passengers INT NOT NULL,
+    fareAmount DECIMAL(8,2) NOT NULL,
+    status ENUM('pending','confirmed','completed','cancelled') DEFAULT 'pending',
+    cancellationReason VARCHAR(255) NULL,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
-    FOREIGN KEY (customerId) REFERENCES customers(customerId) ON UPDATE CASCADE,
-    FOREIGN KEY (driverId) REFERENCES drivers(driverId) ON UPDATE CASCADE ON DELETE SET NULL,
-    FOREIGN KEY (vehicleId) REFERENCES vehicles(vehicleId) ON UPDATE CASCADE ON DELETE SET NULL,
+    FOREIGN KEY (customerId) REFERENCES customers(customerId) ON DELETE RESTRICT,
+    FOREIGN KEY (driverId) REFERENCES drivers(driverId) ON DELETE SET NULL,
+    FOREIGN KEY (vehicleId) REFERENCES vehicles(vehicleId) ON DELETE SET NULL,
     
     INDEX idx_status (status),
     INDEX idx_bookingDate (bookingDate),
-    INDEX idx_customerId (customerId),
-    INDEX idx_driverId (driverId),
-    INDEX idx_vehicleId (vehicleId),
-    INDEX idx_reference (bookingReference)
+    INDEX idx_customerId (customerId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
