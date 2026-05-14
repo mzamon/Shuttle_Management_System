@@ -56,6 +56,18 @@ $isDriver = Auth::hasRole('driver');
             <a href="invoices.php" class="nav-item">
                 <span>📄</span> Invoices
             </a>
+            
+            <a href="notifications.php" class="nav-item">
+                <span>🔔</span> Notifications
+            </a>
+            
+            <a href="vehicles.php" class="nav-item">
+                <span>🚙</span> Vehicles
+            </a>
+            
+            <a href="admin-users.php" class="nav-item">
+                <span>👨‍💼</span> Admin Users
+            </a>
         <?php endif; ?>
         
         <?php if ($isDriver): ?>
