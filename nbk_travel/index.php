@@ -9,9 +9,9 @@ session_start();
 // If already logged in, redirect to dashboard
 if (isset($_SESSION['userId'])) {
     if ($_SESSION['role'] === 'admin') {
-        header('Location: /dashboard.php');
+        header('Location: dashboard.php');
     } else {
-        header('Location: /driver-dashboard.php');
+        header('Location: driver-dashboard.php');
     }
     exit;
 }
@@ -44,9 +44,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 // Redirect based on role
                 if ($user['role'] === 'admin') {
-                    header('Location: /dashboard.php');
+                    header('Location: dashboard.php');
                 } else {
-                    header('Location: /driver-dashboard.php');
+                    header('Location: driver-dashboard.php');
                 }
                 exit;
             } else {
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NBK Travel - Login</title>
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body class="login-body">
     <div class="login-container">
@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
 
-            <form method="POST" action="/index.php" class="login-form">
+            <form method="POST" action="index.php" class="login-form">
                 <div class="form-group">
                     <label for="username">Username</label>
                     <input 

@@ -10,7 +10,7 @@ require_once 'includes/db.php';
 
 // Ensure user is a driver
 if ($_SESSION['role'] !== 'driver') {
-    header('Location: /dashboard.php');
+    header('Location: dashboard.php');
     exit;
 }
 
@@ -24,7 +24,7 @@ $driverId = $row['driverId'] ?? null;
 $stmt->close();
 
 if (!$driverId) {
-    header('Location: /logout.php');
+    header('Location: logout.php');
     exit;
 }
 

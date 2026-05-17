@@ -8,6 +8,20 @@ CREATE DATABASE IF NOT EXISTS nbk_travel CHARACTER SET utf8mb4 COLLATE utf8mb4_u
 USE nbk_travel;
 
 -- ============================================
+-- DRIVERS TABLE (must be created before users)
+-- ============================================
+CREATE TABLE IF NOT EXISTS drivers (
+    driverId INT PRIMARY KEY AUTO_INCREMENT,
+    fullName VARCHAR(100) NOT NULL,
+    licenceNumber VARCHAR(30) NOT NULL UNIQUE,
+    phoneNumber VARCHAR(20) NOT NULL,
+    status ENUM('available','on-trip','off-duty') DEFAULT 'available',
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
 -- USERS TABLE - Authentication
 -- ============================================
 CREATE TABLE IF NOT EXISTS users (
@@ -35,20 +49,6 @@ CREATE TABLE IF NOT EXISTS customers (
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     
     INDEX idx_phone (phoneNumber)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================
--- DRIVERS TABLE
--- ============================================
-CREATE TABLE IF NOT EXISTS drivers (
-    driverId INT PRIMARY KEY AUTO_INCREMENT,
-    fullName VARCHAR(100) NOT NULL,
-    licenceNumber VARCHAR(30) NOT NULL UNIQUE,
-    phoneNumber VARCHAR(20) NOT NULL,
-    status ENUM('available','on-trip','off-duty') DEFAULT 'available',
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    
-    INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
