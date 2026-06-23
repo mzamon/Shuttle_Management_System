@@ -1,180 +1,112 @@
 <?php
-/**
- * Schedule Management Page - Driver & Vehicle Assignment
- * NBK Travel Shuttle Booking Management System
- */
-
-session_start();
+if (session_status() === PHP_SESSION_NONE) session_start();
 require_once 'includes/auth_check.php';
 require_once 'includes/db.php';
 
-// Get unassigned confirmed bookings
-$bookingsStmt = $conn->prepare("SELECT b.bookingId, c.fullName, b.pickupLocation, b.dropoffLocation, b.bookingDate FROM bookings b JOIN customers c ON b.customerId = c.customerId WHERE b.status = 'pending' OR (b.status = 'confirmed' AND b.driverId IS NULL) ORDER BY b.bookingDate ASC");
-$bookingsStmt->execute();
-$bookingsResult = $bookingsStmt->get_result();
-$unassignedBookings = [];
-while ($row = $bookingsResult->fetch_assoc()) {
-    $unassignedBookings[] = $row;
-}
-$bookingsStmt->close();
+$unassignedStmt = $conn->prepare(
+    "SELECT b.bookingId, c.fullName, b.pickupLocation, b.dropoffLocation, b.bookingDate, b.passengers, b.fareAmount
+     FROM bookings b JOIN customers c ON b.customerId = c.customerId
+     WHERE b.status IN ('pending','confirmed') AND b.driverId IS NULL
+     ORDER BY b.bookingDate ASC"
+);
+$unassignedStmt->execute();
+$unassigned = $unassignedStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$unassignedStmt->close();
 
-// Get schedule data
-$startDate = date('Y-m-d');
-$endDate = date('Y-m-d', strtotime('+7 days'));
-$scheduleStmt = $conn->prepare("SELECT s.*, b.pickupLocation, b.dropoffLocation, d.fullName as driverName, v.registrationNumber FROM schedules s JOIN bookings b ON s.bookingId = b.bookingId JOIN drivers d ON s.driverId = d.driverId JOIN vehicles v ON s.vehicleId = v.vehicleId WHERE s.scheduledStart BETWEEN ? AND ? ORDER BY s.scheduledStart ASC");
-$scheduleStmt->bind_param("ss", $startDate, $endDate);
-$scheduleStmt->execute();
-$scheduleResult = $scheduleStmt->get_result();
-$schedules = [];
-while ($row = $scheduleResult->fetch_assoc()) {
-    $schedules[] = $row;
-}
-$scheduleStmt->close();
-
-// Get available drivers and vehicles
-$driversResult = $conn->query("SELECT driverId, fullName FROM drivers WHERE status = 'available' ORDER BY fullName");
-$drivers = [];
-while ($row = $driversResult->fetch_assoc()) {
-    $drivers[] = $row;
-}
-
-$vehiclesResult = $conn->query("SELECT vehicleId, registrationNumber, make, model FROM vehicles WHERE status = 'available' ORDER BY registrationNumber");
-$vehicles = [];
-while ($row = $vehiclesResult->fetch_assoc()) {
-    $vehicles[] = $row;
-}
+$drivers = $conn->query("SELECT driverId, fullName FROM drivers WHERE status = 'available'")->fetch_all(MYSQLI_ASSOC);
+$vehicles = $conn->query("SELECT vehicleId, registrationNumber, capacity FROM vehicles WHERE status = 'available'")->fetch_all(MYSQLI_ASSOC);
 
 require_once 'includes/header.php';
 ?>
 
 <div class="page-header">
-    <h1>Schedule Management</h1>
-    <p>Assign drivers and vehicles to bookings</p>
+    <div class="ph-text">
+        <h1>Schedule & Assignment</h1>
+        <p>Assign drivers and vehicles to bookings</p>
+    </div>
 </div>
 
-<!-- Assignment Form -->
+<?php if (empty($unassigned)): ?>
+<div class="card"><div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><h3>No unassigned bookings</h3><p>All bookings are assigned or completed.</p></div></div>
+<?php else: ?>
 <div class="card">
     <div class="card-header">
-        <h2>Assign Driver & Vehicle</h2>
+        <h2>Unassigned Bookings</h2>
+        <span class="card-header-meta"><?= count($unassigned) ?> pending</span>
     </div>
     <div class="card-body">
-        <form id="assignmentForm" class="form-wrapper">
-            <div class="form-row">
-                <div class="form-group full">
-                    <label for="bookingId">Select Booking *</label>
-                    <select id="bookingId" required onchange="updateBookingDetails()">
-                        <option value="">-- Select Booking --</option>
-                        <?php foreach ($unassignedBookings as $booking): ?>
-                        <option value="<?php echo $booking['bookingId']; ?>">
-                            #<?php echo $booking['bookingId']; ?> - <?php echo htmlspecialchars($booking['fullName']); ?> (<?php echo htmlspecialchars($booking['pickupLocation']); ?> → <?php echo htmlspecialchars($booking['dropoffLocation']); ?>)
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+        <?php foreach ($unassigned as $b): ?>
+        <div class="assign-card">
+            <div class="assign-header">
+                <div><strong>#<?= $b['bookingId'] ?></strong> – <span style="color:var(--ice);"><?= htmlspecialchars($b['fullName']) ?></span> <span style="color:var(--smoke);font-size:13px;margin-left:12px;"><?= date('d M Y H:i', strtotime($b['bookingDate'])) ?></span></div>
+                <span class="badge badge-pending">Pending</span>
             </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="driverId">Driver *</label>
-                    <select id="driverId" required>
-                        <option value="">-- Select Driver --</option>
-                        <?php foreach ($drivers as $driver): ?>
-                        <option value="<?php echo $driver['driverId']; ?>"><?php echo htmlspecialchars($driver['fullName']); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="vehicleId">Vehicle *</label>
-                    <select id="vehicleId" required>
-                        <option value="">-- Select Vehicle --</option>
-                        <?php foreach ($vehicles as $vehicle): ?>
-                        <option value="<?php echo $vehicle['vehicleId']; ?>"><?php echo htmlspecialchars($vehicle['registrationNumber']); ?> - <?php echo htmlspecialchars($vehicle['make'] . ' ' . $vehicle['model']); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+            <div class="assign-info">
+                <span>📍 <?= htmlspecialchars($b['pickupLocation']) ?> → <?= htmlspecialchars($b['dropoffLocation']) ?></span>
+                <span>👥 <?= $b['passengers'] ?> pax</span>
+                <span>R<?= number_format($b['fareAmount'], 2) ?></span>
             </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="startTime">Start Time *</label>
-                    <input type="datetime-local" id="startTime" required>
+            <form class="assign-form" data-booking="<?= $b['bookingId'] ?>">
+                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                    <div class="form-group" style="flex:1;min-width:150px;">
+                        <label>Driver</label>
+                        <select name="driverId" required>
+                            <option value="">Select</option>
+                            <?php foreach ($drivers as $d): ?><option value="<?= $d['driverId'] ?>"><?= htmlspecialchars($d['fullName']) ?></option><?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:150px;">
+                        <label>Vehicle</label>
+                        <select name="vehicleId" required>
+                            <option value="">Select</option>
+                            <?php foreach ($vehicles as $v): ?><option value="<?= $v['vehicleId'] ?>"><?= htmlspecialchars($v['registrationNumber']) ?> (<?= $v['capacity'] ?> seats)</option><?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:130px;">
+                        <label>Start Time</label>
+                        <input type="datetime-local" name="startTime" value="<?= date('Y-m-d\TH:i', strtotime($b['bookingDate'])) ?>" required>
+                    </div>
+                    <div class="form-group" style="flex:1;min-width:130px;">
+                        <label>End Time</label>
+                        <input type="datetime-local" name="endTime" value="<?= date('Y-m-d\TH:i', strtotime($b['bookingDate']) + 3600) ?>" required>
+                    </div>
+                    <div style="display:flex;align-items:flex-end;padding-bottom:4px;">
+                        <button type="submit" class="btn btn-primary btn-sm">Assign</button>
+                    </div>
                 </div>
-
-                <div class="form-group">
-                    <label for="endTime">End Time *</label>
-                    <input type="datetime-local" id="endTime" required>
-                </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary">Assign</button>
-        </form>
+            </form>
+        </div>
+        <?php endforeach; ?>
     </div>
 </div>
-
-<!-- Weekly Schedule Grid -->
-<div class="card">
-    <div class="card-header">
-        <h2>Weekly Schedule (<?php echo $startDate; ?> to <?php echo $endDate; ?>)</h2>
-    </div>
-    <div class="card-body">
-        <table>
-            <thead>
-                <tr>
-                    <th>Booking ID</th>
-                    <th>Route</th>
-                    <th>Driver</th>
-                    <th>Vehicle</th>
-                    <th>Start Time</th>
-                    <th>End Time</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($schedules as $schedule): ?>
-                <tr>
-                    <td>#<?php echo $schedule['bookingId']; ?></td>
-                    <td><?php echo htmlspecialchars($schedule['pickupLocation']); ?> → <?php echo htmlspecialchars($schedule['dropoffLocation']); ?></td>
-                    <td><?php echo htmlspecialchars($schedule['driverName']); ?></td>
-                    <td><?php echo htmlspecialchars($schedule['registrationNumber']); ?></td>
-                    <td><?php echo date('M d H:i', strtotime($schedule['scheduledStart'])); ?></td>
-                    <td><?php echo date('M d H:i', strtotime($schedule['scheduledEnd'])); ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
+<?php endif; ?>
 
 <script>
-function updateBookingDetails() {
-    // This would load booking details if needed
-}
-
-document.getElementById('assignmentForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const data = {
-        bookingId: parseInt(document.getElementById('bookingId').value),
-        driverId: parseInt(document.getElementById('driverId').value),
-        vehicleId: parseInt(document.getElementById('vehicleId').value),
-        startTime: document.getElementById('startTime').value,
-        endTime: document.getElementById('endTime').value
-    };
-
-    const result = await NBKTravel.apiCall('/api/schedule.php?action=assign', 'POST', data);
-    
-    if (!result.success) {
-        if (result.message === 'CONFLICT_DETECTED') {
-            NBKTravel.showToast('⚠️ CONFLICT DETECTED! Driver or vehicle already assigned at this time.', 'warning');
-            return;
+document.querySelectorAll('.assign-form').forEach(form => {
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const bookingId = form.dataset.booking;
+        const data = {
+            bookingId: parseInt(bookingId),
+            driverId: parseInt(form.querySelector('[name="driverId"]').value),
+            vehicleId: parseInt(form.querySelector('[name="vehicleId"]').value),
+            startTime: form.querySelector('[name="startTime"]').value,
+            endTime: form.querySelector('[name="endTime"]').value
+        };
+        const btn = form.querySelector('button[type=submit]');
+        btn.disabled = true; btn.textContent = 'Assigning…';
+        const res = await NBKTravel.apiCall('/nbk-travel/api/schedule.php?action=assign', 'POST', data);
+        if (res.success) {
+            NBKTravel.showToast('Assignment successful', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else if (res.data?.conflict) {
+            NBKTravel.showToast('Conflict! Driver/vehicle already booked.', 'error');
+            btn.disabled = false; btn.textContent = 'Assign';
+        } else {
+            NBKTravel.showToast(res.message || 'Failed', 'error');
+            btn.disabled = false; btn.textContent = 'Assign';
         }
-        NBKTravel.showToast(result.message, 'error');
-        return;
-    }
-
-    NBKTravel.showToast('Assignment successful', 'success');
-    document.getElementById('assignmentForm').reset();
-    setTimeout(() => location.reload(), 1500);
+    });
 });
 </script>
 

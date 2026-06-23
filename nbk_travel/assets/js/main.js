@@ -1,236 +1,75 @@
 /**
- * Global JavaScript Utilities
- * NBK Travel Shuttle Booking Management System
+ * NBK Travel – Core JS Utilities v3.0
  */
 
-// API Base URL
-const API_BASE = '/api';
-
-/**
- * Fetch wrapper with JSON support
- */
+/* ── API ─────────────────────────────────────────────────── */
 async function apiCall(endpoint, method = 'GET', data = null) {
-  const options = {
-    method: method,
-    headers: {
-      'Content-Type': 'application/json',
-    }
-  };
-
-  if (data && method !== 'GET') {
-    options.body = JSON.stringify(data);
-  }
-
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (data && method !== 'GET') opts.body = JSON.stringify(data);
   try {
-    const response = await fetch(endpoint, options);
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error('API Error:', error);
+    const res = await fetch(endpoint, opts);
+    const json = await res.json();
+    return json;
+  } catch (err) {
+    console.error('API Error:', err);
     return { success: false, message: 'Network error. Please try again.' };
   }
 }
 
-/**
- * Show notification toast
- */
-function showToast(message, type = 'info', duration = 3000) {
+/* ── Toast ───────────────────────────────────────────────── */
+function showToast(message, type = 'info', duration = 3500) {
+  let container = document.querySelector('.toast-wrap');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'toast-wrap';
+    document.body.appendChild(container);
+  }
+  const icons = {
+    success: '<polyline points="20 6 9 17 4 12"/>',
+    error:   '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+    warning: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    info:    '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'
+  };
   const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  toast.textContent = message;
-  toast.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    padding: 16px 24px;
-    background: ${getToastColor(type)};
-    color: white;
-    border-radius: 8px;
-    z-index: 9999;
-    animation: slideIn 0.3s ease;
-  `;
-
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), duration);
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span class="toast-icon"><svg viewBox="0 0 24 24">${icons[type]||icons.info}</svg></span><span>${message}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => { toast.classList.add('out'); setTimeout(() => toast.remove(), 250); }, duration);
 }
 
-function getToastColor(type) {
-  const colors = {
-    success: 'rgba(46, 213, 115, 0.9)',
-    error: 'rgba(255, 71, 87, 0.9)',
-    warning: 'rgba(255, 165, 2, 0.9)',
-    info: 'rgba(0, 212, 255, 0.9)'
-  };
-  return colors[type] || colors.info;
+/* ── Debounce ────────────────────────────────────────────── */
+function debounce(fn, wait) {
+  let t;
+  return function(...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); };
 }
 
-/**
- * Modal Management
- */
-class Modal {
-  constructor(modalId) {
-    this.modal = document.getElementById(modalId);
-    this.setupListeners();
-  }
-
-  setupListeners() {
-    const closeBtn = this.modal?.querySelector('[data-close]');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.close());
-    }
-
-    this.modal?.addEventListener('click', (e) => {
-      if (e.target === this.modal) {
-        this.close();
-      }
-    });
-  }
-
-  open() {
-    if (this.modal) {
-      this.modal.classList.add('show');
-      document.body.style.overflow = 'hidden';
-    }
-  }
-
-  close() {
-    if (this.modal) {
-      this.modal.classList.remove('show');
-      document.body.style.overflow = 'auto';
-    }
-  }
-
-  toggle() {
-    if (this.modal?.classList.contains('show')) {
-      this.close();
-    } else {
-      this.open();
-    }
+/* ── Login Modal (landing page) ───────────────────────────── */
+function openLoginModal() {
+  const overlay = document.getElementById('loginModal');
+  if (overlay) {
+    overlay.classList.add('active');
+    setTimeout(() => overlay.querySelector('input')?.focus(), 300);
   }
 }
+function closeLoginModal() {
+  const overlay = document.getElementById('loginModal');
+  if (overlay) overlay.classList.remove('active');
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeLoginModal();
+});
+document.addEventListener('click', e => {
+  const overlay = document.getElementById('loginModal');
+  if (overlay && e.target === overlay) closeLoginModal();
+});
 
-/**
- * Form Validation
- */
-function validateForm(formId) {
-  const form = document.getElementById(formId);
-  if (!form) return false;
-
-  const requiredFields = form.querySelectorAll('[required]');
-  let isValid = true;
-
-  requiredFields.forEach(field => {
-    if (!field.value.trim()) {
-      field.style.borderColor = '#ff4757';
-      isValid = false;
-    } else {
-      field.style.borderColor = '';
-    }
-  });
-
-  return isValid;
+/* ── Format Helpers ──────────────────────────────────────── */
+function fmtCurrency(amount) {
+  return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2 }).format(amount);
+}
+function fmtDate(s) {
+  return new Date(s).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-/**
- * Format Currency
- */
-function formatCurrency(amount) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(amount);
-}
-
-/**
- * Format Date
- */
-function formatDate(dateString) {
-  const options = {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  };
-  return new Date(dateString).toLocaleDateString('en-US', options);
-}
-
-/**
- * Format Time
- */
-function formatTime(timeString) {
-  const options = {
-    hour: '2-digit',
-    minute: '2-digit'
-  };
-  return new Date(timeString).toLocaleTimeString('en-US', options);
-}
-
-/**
- * Get Status Badge Class
- */
-function getStatusBadgeClass(status) {
-  const classList = {
-    'pending': 'badge-pending',
-    'confirmed': 'badge-confirmed',
-    'completed': 'badge-completed',
-    'cancelled': 'badge-cancelled',
-    'available': 'badge-available',
-    'on-trip': 'badge-on-trip',
-    'off-duty': 'badge-off-duty',
-    'in-use': 'badge-in-use',
-    'maintenance': 'badge-maintenance'
-  };
-  return classList[status] || 'badge-pending';
-}
-
-/**
- * Debounce helper
- */
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
-
-/**
- * Animation helper
- */
-const slideIn = `
-  @keyframes slideIn {
-    from {
-      transform: translateX(400px);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
-`;
-
-// Inject animation styles
-const style = document.createElement('style');
-style.textContent = slideIn;
-document.head.appendChild(style);
-
-// Export for use
-window.NBKTravel = {
-  apiCall,
-  showToast,
-  Modal,
-  validateForm,
-  formatCurrency,
-  formatDate,
-  formatTime,
-  getStatusBadgeClass,
-  debounce
-};
+/* ── Export ──────────────────────────────────────────────── */
+window.NBKTravel = { apiCall, showToast, debounce, openLoginModal, closeLoginModal, fmtCurrency, fmtDate };

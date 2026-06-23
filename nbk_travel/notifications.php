@@ -1,74 +1,42 @@
 <?php
-/**
- * Notifications Log Page
- * NBK Travel Shuttle Booking Management System
- */
-
-session_start();
+if (session_status() === PHP_SESSION_NONE) session_start();
 require_once 'includes/auth_check.php';
 require_once 'includes/db.php';
 
-// Get notifications
-$notificationsResult = $conn->query("SELECT notificationId, recipientType, channel, messageBody, sentAt, status FROM notifications ORDER BY sentAt DESC LIMIT 100");
-$notifications = [];
-while ($row = $notificationsResult->fetch_assoc()) {
-    $notifications[] = $row;
-}
-
+$notifications = $conn->query("SELECT notificationId, recipientType, channel, messageBody, sentAt, status FROM notifications ORDER BY sentAt DESC LIMIT 100")->fetch_all(MYSQLI_ASSOC);
 require_once 'includes/header.php';
 ?>
 
 <div class="page-header">
-    <h1>Notifications Log</h1>
-    <p>View all system notifications and communication history</p>
+    <div class="ph-text"><h1>Notifications</h1><p>System logs and notification history</p></div>
 </div>
 
-<!-- Notifications Table -->
 <div class="card">
-    <div class="card-header">
-        <h2>Recent Notifications</h2>
-    </div>
-    <div class="card-body">
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Type</th>
-                    <th>Channel</th>
-                    <th>Message</th>
-                    <th>Sent At</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($notifications as $notification): ?>
-                <tr>
-                    <td>#<?php echo $notification['notificationId']; ?></td>
-                    <td>
-                        <span class="badge" style="background: rgba(0, 212, 255, 0.1); color: #00d4ff; border: 1px solid #00d4ff;">
-                            <?php echo ucfirst($notification['recipientType']); ?>
-                        </span>
-                    </td>
-                    <td>
-                        <?php if ($notification['channel'] === 'sms'): ?>
-                            <span>📱 SMS</span>
-                        <?php elseif ($notification['channel'] === 'email'): ?>
-                            <span>📧 Email</span>
-                        <?php else: ?>
-                            <span>🔔 System</span>
-                        <?php endif; ?>
-                    </td>
-                    <td><?php echo htmlspecialchars(substr($notification['messageBody'], 0, 80)); ?>...</td>
-                    <td><?php echo date('M d, Y H:i', strtotime($notification['sentAt'])); ?></td>
-                    <td>
-                        <span class="badge <?php echo $notification['status'] === 'logged' ? 'badge-confirmed' : 'badge-danger'; ?>">
-                            <?php echo ucfirst($notification['status']); ?>
-                        </span>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+    <div class="card-header"><h2>Recent Notifications</h2><span class="card-header-meta">Last 100</span></div>
+    <div class="card-body" style="padding:0;">
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>ID</th><th>Type</th><th>Channel</th><th>Message</th><th>Sent At</th><th>Status</th></tr></thead>
+                <tbody>
+                    <?php foreach ($notifications as $n): ?>
+                    <tr>
+                        <td>#<?= $n['notificationId'] ?></td>
+                        <td><span class="badge badge-info"><?= ucfirst($n['recipientType']) ?></span></td>
+                        <td>
+                            <span class="channel-badge">
+                                <span class="ch-dot <?= $n['channel'] ?>"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+                                <?= strtoupper($n['channel']) ?>
+                            </span>
+                        </td>
+                        <td><?= htmlspecialchars(substr($n['messageBody'], 0, 60)) ?>…</td>
+                        <td><?= date('d M Y H:i', strtotime($n['sentAt'])) ?></td>
+                        <td><span class="badge badge-<?= $n['status'] ?>"><?= ucfirst($n['status']) ?></span></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($notifications)): ?><tr><td colspan="6" style="text-align:center;padding:40px;color:var(--smoke);">No notifications logged.</td></tr><?php endif; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 

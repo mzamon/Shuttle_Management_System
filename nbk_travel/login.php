@@ -19,3 +19,4 @@ session_regenerate_id(true);
 
 header('Location: dashboard.php');
 exit;
+?>

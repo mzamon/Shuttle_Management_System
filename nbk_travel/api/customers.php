@@ -1,14 +1,8 @@
 <?php
-/**
- * API: Customers
- * NBK Travel Shuttle Booking Management System
- */
-
 session_start();
+header('Content-Type: application/json');
 require_once '../includes/db.php';
 require_once '../includes/auth_check.php';
-
-header('Content-Type: application/json');
 
 if ($_SESSION['role'] !== 'admin') {
     http_response_code(403);
@@ -19,8 +13,9 @@ if ($_SESSION['role'] !== 'admin') {
 $action = $_GET['action'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $data = json_decode(file_get_contents('php://input'), true);
+
     if ($action === 'create') {
-        $data = json_decode(file_get_contents('php://input'), true);
         $fullName = $data['fullName'] ?? '';
         $phoneNumber = $data['phoneNumber'] ?? '';
         $emailAddress = $data['emailAddress'] ?? '';
@@ -31,21 +26,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // Check for duplicate phone
-        $check = $conn->prepare("SELECT customerId FROM customers WHERE phoneNumber = ?");
-        $check->bind_param("s", $phoneNumber);
-        $check->execute();
-        if ($check->get_result()->num_rows > 0) {
-            echo json_encode(['success' => false, 'message' => 'Customer with this phone already exists']);
-            exit;
-        }
-        $check->close();
-
         $stmt = $conn->prepare("INSERT INTO customers (fullName, phoneNumber, emailAddress, preferences) VALUES (?, ?, ?, ?)");
         $stmt->bind_param("ssss", $fullName, $phoneNumber, $emailAddress, $preferences);
 
         if ($stmt->execute()) {
-            echo json_encode(['success' => true, 'message' => 'Customer created', 'data' => ['customerId' => $conn->insert_id]]);
+            echo json_encode(['success' => true]);
         } else {
             echo json_encode(['success' => false, 'message' => 'Database error']);
         }
@@ -55,36 +40,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($action === 'search') {
-        $query = $_GET['query'] ?? '';
-
-        $query = "%$query%";
-        $stmt = $conn->prepare("SELECT customerId, fullName, phoneNumber, emailAddress FROM customers WHERE fullName LIKE ? OR phoneNumber LIKE ? LIMIT 10");
-        $stmt->bind_param("ss", $query, $query);
+        $q = $_GET['query'] ?? '';
+        $searchTerm = "%$q%";
+        $stmt = $conn->prepare("SELECT customerId, fullName, phoneNumber FROM customers WHERE fullName LIKE ? OR phoneNumber LIKE ? LIMIT 8");
+        $stmt->bind_param("ss", $searchTerm, $searchTerm);
         $stmt->execute();
-        $result = $stmt->get_result();
-
-        $customers = [];
-        while ($row = $result->fetch_assoc()) {
-            $customers[] = $row;
-        }
-
-        echo json_encode(['success' => true, 'data' => $customers]);
-        $stmt->close();
-    }
-
-    if ($action === 'list') {
-        $stmt = $conn->prepare("SELECT customerId, fullName, phoneNumber, emailAddress, preferences FROM customers ORDER BY createdAt DESC");
-        $stmt->execute();
-        $result = $stmt->get_result();
-
-        $customers = [];
-        while ($row = $result->fetch_assoc()) {
-            $customers[] = $row;
-        }
-
-        echo json_encode(['success' => true, 'data' => $customers]);
-        $stmt->close();
+        $res = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        echo json_encode(['success' => true, 'data' => $res]);
     }
 }
-
 ?>
